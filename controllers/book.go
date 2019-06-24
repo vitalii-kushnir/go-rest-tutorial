@@ -17,7 +17,13 @@ func (c BookController) GetBooks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Get all book")
 		bookRepo := bookRepository.BookRepository{}
-		books := bookRepo.GetBooks(db)
+		books, err := bookRepo.GetBooks(db)
+
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
+
 		json.NewEncoder(w).Encode(books)
 	}
 }
@@ -27,10 +33,19 @@ func (c BookController) GetBook(db *sql.DB) http.HandlerFunc {
 		log.Println("Get one book")
 		params := mux.Vars(r)
 		id, err := strconv.Atoi(params["id"])
-		logFatal(err)
+
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
 
 		bookRepo := bookRepository.BookRepository{}
-		book := bookRepo.GetBook(db, id)
+		book, err := bookRepo.GetBook(db, id)
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
+
 		json.NewEncoder(w).Encode(book)
 	}
 }
@@ -39,11 +54,16 @@ func (c BookController) AddBooks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Add one book")
 		var book models.Book
-		//var bookID int
 		json.NewDecoder(r.Body).Decode(&book)
 
 		bookRepo := bookRepository.BookRepository{}
-		bookID := bookRepo.AddBook(db, book)
+		bookID, err := bookRepo.AddBook(db, book)
+
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
+
 		json.NewEncoder(w).Encode(bookID)
 
 	}
@@ -56,7 +76,13 @@ func (c BookController) UpdateBook(db *sql.DB) http.HandlerFunc {
 		json.NewDecoder(r.Body).Decode(&book)
 
 		bookRepo := bookRepository.BookRepository{}
-		rowsUpdated := bookRepo.UpdateBook(db, book)
+		rowsUpdated, err := bookRepo.UpdateBook(db, book)
+
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
+
 		json.NewEncoder(w).Encode(rowsUpdated)
 	}
 }
@@ -67,18 +93,27 @@ func (c BookController) RemoveBook(db *sql.DB) http.HandlerFunc {
 		params := mux.Vars(r)
 
 		id, err := strconv.Atoi(params["id"])
-		logFatal(err)
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
 
 		bookRepo := bookRepository.BookRepository{}
-		rowsDeleted := bookRepo.RemoveBook(db, id)
+		rowsDeleted, err := bookRepo.RemoveBook(db, id)
+		if err != nil {
+			handleError(w, err, http.StatusBadRequest)
+			return
+		}
 
 		json.NewEncoder(w).Encode(rowsDeleted)
 
 	}
 }
 
-func logFatal(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+func handleError(w http.ResponseWriter, err error, statusCode int) {
+	var errorDto models.Error
+	errorDto.Message = err.Error()
+	errorDto.StatusCode = statusCode
+
+	json.NewEncoder(w).Encode(errorDto)
 }
